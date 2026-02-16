@@ -11,8 +11,6 @@ const IGNORED_DIRS = new Set([
   "build",
   ".next",
   ".cache",
-  ".env",
-  "bun.lock",
 ]);
 
 /**
