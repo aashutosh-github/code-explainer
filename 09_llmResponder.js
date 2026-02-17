@@ -8,7 +8,7 @@ const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 function buildPrompt(query, chunks, relations) {
   let prompt = `
- You are an expert software engineer.
+ You are an expert software engineer. You will only answer questions related to coding or software engineering. You will gently but firmly decline all other requests unrelated to coding.
  Answer the user's question using ONLY the provided code snippets and relationships.
  Be precise and answer step-by-step.
 
