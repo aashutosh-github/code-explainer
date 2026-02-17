@@ -14,12 +14,10 @@ async function ask() {
   try {
     console.log("💬 Ask a question about the codebase:");
     const query = await rl.question("> ");
-    if (
-      query.trim().toLowerCase() === "exit" ||
-      query.trim().toLowerCase() === "quit"
-    ) {
+    if (["exit", "quit"].includes(query.trim().toLowerCase())) {
+      console.log("Exiting!");
       rl.close();
-      return;
+      process.exit(0);
     }
 
     console.log("\n🤖 Thinking...");
@@ -31,10 +29,11 @@ async function ask() {
     console.log(answer);
     console.log("\n=======================================");
 
-    rl.close();
+    ask();
   } catch (err) {
     console.error("❌ Query failed:", err);
     rl.close();
+    process.exit(0);
   }
 }
 
