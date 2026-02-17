@@ -14,7 +14,10 @@ async function ask() {
   try {
     console.log("💬 Ask a question about the codebase:");
     const query = await rl.question("> ");
-    if (query.trim().toLowerCase() === "exit") {
+    if (
+      query.trim().toLowerCase() === "exit" ||
+      query.trim().toLowerCase() === "quit"
+    ) {
       rl.close();
       return;
     }
