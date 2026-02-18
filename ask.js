@@ -10,6 +10,8 @@ import { generateAnswer } from "./09_llmResponder.js";
 
 const rl = readline.createInterface({ input, output });
 
+let History = [];
+
 async function ask() {
   try {
     console.log("💬 Ask a question about the codebase:");
@@ -23,10 +25,13 @@ async function ask() {
     console.log("\n🤖 Thinking...");
 
     const context = await buildContext(query);
-    const answer = await generateAnswer(context);
+    // context = {query, chunks, relationships}
+    const result = await generateAnswer(context, History);
+
+    History = result.updatedHistory;
 
     console.log("\n================ ANSWER ================\n");
-    console.log(answer);
+    console.log(result.answer);
     console.log("\n=======================================");
 
     ask();

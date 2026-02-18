@@ -6,18 +6,9 @@ const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
  * Build prompt for LLM
  */
 
-function buildPrompt(query, chunks, relations) {
+function buildPrompt(chunks, relations) {
   let prompt = `
- You are an expert software engineer. You will only answer questions related to coding or software engineering. You will gently but firmly decline all other requests unrelated to coding.
- Answer the user's question using ONLY the provided code snippets and relationships.
- Be precise and answer step-by-step.
-
- User Question:
- ${query}
-
- =====================
- RELEVANT CODE SNIPPETS
- =====================
+ RELEVANT CODE SNIPPETS:
  `;
 
   for (const chunk of chunks) {
@@ -32,40 +23,48 @@ function buildPrompt(query, chunks, relations) {
 
   if (relations.length > 0) {
     prompt += `
- =====================
- RELATIONSHIPS BETWEEN COMPONENTS
- =====================
+ RELATIONSHIPS BETWEEN COMPONENTS:
  `;
-
     for (const relation of relations) {
       prompt += `
- ${relation.from} ${relation.type} ${relation.to}
- `;
+   ${relation.from} ${relation.type} ${relation.to}
+   `;
     }
   }
-
-  prompt += `
- =====================
- INSTRUCTIONS
- =====================
- Use the code and relationships above to answer.
- If something is not present, say you do not know.
- Explain clearly and concisely.
- `;
-
   return prompt;
 }
 
 /**
  * Generate final answer using Gemini
  */
-export async function generateAnswer(context) {
+export async function generateAnswer(context, history = []) {
   const model = genai.getGenerativeModel({
     model: "gemini-2.5-flash",
+    systemInstruction: `You are an expert software engineer. You will only answer questions related to coding or software engineering. You will gently but firmly decline all other requests unrelated to coding.
+    Answer the user's question using ONLY the provided code snippets and relationships.
+    Be precise and answer step-by-step.
+    If the answer is not present in the given context, say you cannot determine as the asked part is not in the provided context.
+    Return all the answer in raw text format, DO NOT include any kind of formatting
+    Example:
+      1. do not return **Heading-1**, return Heading-1
+      2. do not return * bullet point 1, return bullet point 1`,
   });
 
-  const prompt = buildPrompt(context.query, context.chunks, context.relations);
+  const prompt = buildPrompt(context.chunks, context.relations);
+  const chat = model.startChat({
+    history: history,
+  });
 
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  const messageWithContext = `
+  ${prompt}
+
+  User Question: ${context.query}
+  `;
+  const result = await chat.sendMessage(messageWithContext);
+  const responseText = result.response.text();
+
+  return {
+    answer: responseText,
+    updatedHistory: await chat.getHistory(),
+  };
 }

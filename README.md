@@ -21,6 +21,6 @@ The data flow is as follows:
 - The graph DB fetches the relationships of these 10 chunks.
 - The detailed and final prompt is built with the entire context of the code and its relationships along with the user's query.
 - The final answer is returned.
-
+- A chat history feature has also been implemented
 
 ### <mark>The user will have to enter their own credentials in the .env file</mark>
