@@ -24,10 +24,28 @@ export function buildChunks(files) {
   const chunks = [];
 
   for (const file of files) {
+    /* ===============================
+        FILE LEVEL CHUNK (always)
+     ================================ */
+
+    chunks.push({
+      text: file.content.slice(0, 4000),
+      metadata: {
+        file: file.path,
+        symbol: "FILE",
+        type: "file",
+        language: file.language,
+      },
+    });
+
+    // If AST missing, still keep file chunk
     if (!file.ast) continue;
 
     traverse(file.ast.rootNode, node => {
-      // Function declarations
+      /* ===============================
+          FUNCTIONS
+       ================================ */
+
       if (node.type === "function_declaration") {
         const nameNode = node.childForFieldName("name");
         if (!nameNode) return;
@@ -45,7 +63,10 @@ export function buildChunks(files) {
         });
       }
 
-      // Class declarations
+      /* ===============================
+          CLASSES
+       ================================ */
+
       if (node.type === "class_declaration") {
         const nameNode = node.childForFieldName("name");
         if (!nameNode) return;
@@ -61,6 +82,38 @@ export function buildChunks(files) {
             language: file.language,
           },
         });
+      }
+
+      // Arrow functions & function expressions
+      if (
+        node.type === "lexical_declaration" ||
+        node.type === "variable_declaration"
+      ) {
+        for (const child of node.namedChildren) {
+          if (child.type !== "variable_declarator") continue;
+
+          const nameNode = child.childForFieldName("name");
+          const valueNode = child.childForFieldName("value");
+
+          if (!nameNode || !valueNode) continue;
+
+          if (
+            valueNode.type === "arrow_function" ||
+            valueNode.type === "function"
+          ) {
+            const chunkText = extractChunkFromNode(valueNode, file.content);
+
+            chunks.push({
+              text: chunkText,
+              metadata: {
+                file: file.path,
+                symbol: nameNode.text,
+                type: "function",
+                language: file.language,
+              },
+            });
+          }
+        }
       }
     });
   }

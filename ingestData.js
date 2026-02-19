@@ -70,9 +70,11 @@ async function ingest() {
 
     console.log("\n✅ Ingestion completed successfully.");
     rl.close();
+    process.exit(0);
   } catch (err) {
     console.error("❌ Ingestion failed:", err);
     rl.close();
+    process.exit(0);
   }
 }
 
