@@ -19,8 +19,19 @@ const EXTENSION_TO_LANGUAGE = {
  * @returns {Promise<Array<{path:string, content:string, extension:string, language:string}>>}
  */
 export async function detectLanguages(files) {
-  return files.map(file => ({
-    ...file,
-    language: EXTENSION_TO_LANGUAGE[file.extension] || "unknown",
-  }));
+  const results = [];
+
+  for (const file of files) {
+    const language = EXTENSION_TO_LANGUAGE[file.extension];
+
+    // Skip unsupported files
+    if (!language) continue;
+
+    results.push({
+      ...file,
+      language,
+    });
+  }
+
+  return results;
 }
