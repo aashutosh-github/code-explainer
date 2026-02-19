@@ -35,6 +35,7 @@ const SUPPORTED_EXTENSIONS = new Set([
  */
 export function scanCodebase(rootDir) {
   const results = [];
+  const newPath = path.resolve(rootDir);
 
   function walk(currentPath) {
     const entries = fs.readdirSync(currentPath, { withFileTypes: true });
@@ -64,7 +65,7 @@ export function scanCodebase(rootDir) {
     }
   }
 
-  walk(rootDir);
+  walk(newPath);
 
   return results;
 }
