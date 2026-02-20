@@ -1,5 +1,10 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+// Get the directory name of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Directories to ignore while scanning
@@ -35,7 +40,9 @@ const SUPPORTED_EXTENSIONS = new Set([
  */
 export function scanCodebase(rootDir) {
   const results = [];
-  const newPath = path.resolve(rootDir);
+
+  // path.resolve relative to the script location instead of CWD
+  const baseEntryPath = path.resolve(__dirname, rootDir);
 
   function walk(currentPath) {
     const entries = fs.readdirSync(currentPath, { withFileTypes: true });
@@ -57,7 +64,9 @@ export function scanCodebase(rootDir) {
         const content = fs.readFileSync(fullPath, "utf-8");
 
         results.push({
-          path: fullPath,
+          // Converts absolute path back to a readable relative path
+          // relative to where the scan started.
+          path: path.relative(baseEntryPath, fullPath),
           content,
           extension: ext,
         });
@@ -65,7 +74,7 @@ export function scanCodebase(rootDir) {
     }
   }
 
-  walk(newPath);
+  walk(baseEntryPath);
 
   return results;
 }
