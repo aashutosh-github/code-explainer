@@ -6,15 +6,8 @@ import { detectLanguages } from "./02_languageDetector.js";
 import { parseFilesToAST } from "./03_astParser.js";
 import { extractSymbols } from "./04_symbolExtractor.js";
 import { buildChunks } from "./05_chunkBuilder.js";
-
 import { storeChunks } from "./06_vectorStore.js";
-import {
-  createFileNode,
-  createFunctionNode,
-  createClassNode,
-  linkFileDefinesSymbol,
-  linkFunctionCallsFunction,
-} from "./07_graphStore.js";
+import { syncChunksToGraph } from "./07_graphStore.js";
 
 /* ===============================
    CLI
@@ -46,35 +39,18 @@ async function ingest() {
     console.log("📥 Storing chunks in Vector DB...");
     await storeChunks(chunks);
 
-    console.log("🕸️ Building graph...");
-
-    for (const file of withSymbols) {
-      await createFileNode(file.path);
-
-      for (const fn of file.symbols.functions) {
-        await createFunctionNode(fn, file.path);
-        await linkFileDefinesSymbol(file.path, fn);
-      }
-
-      for (const cls of file.symbols.classes) {
-        await createClassNode(cls, file.path);
-        await linkFileDefinesSymbol(file.path, cls);
-      }
-
-      for (const call of file.symbols.calls) {
-        if (file.symbols.functions.length > 0) {
-          await linkFunctionCallsFunction(file.symbols.functions[0], call);
-        }
-      }
-    }
-
+    /* ===============================
+       🕸️ BUILDING GRAPH (UPDATED)
+    ================================ */
+    console.log("🕸️ Syncing chunks to Knowledge Graph...");
+    await syncChunksToGraph(chunks);
     console.log("\n✅ Ingestion completed successfully.");
     rl.close();
     process.exit(0);
   } catch (err) {
     console.error("❌ Ingestion failed:", err);
     rl.close();
-    process.exit(0);
+    process.exit(1);
   }
 }
 
