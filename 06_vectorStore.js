@@ -1,6 +1,5 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import crypto from "crypto";
 
 /* ===============================
    Clients
@@ -49,7 +48,7 @@ export async function storeChunks(chunks) {
     const embedding = await embedText(chunk.text);
 
     vectors.push({
-      id: `${chunk.metadata.file}:${chunk.metadata.symbol}`,
+      id: chunk.metadata.id,
       values: embedding,
       metadata: {
         ...chunk.metadata,

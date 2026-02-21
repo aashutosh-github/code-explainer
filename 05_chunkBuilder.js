@@ -24,99 +24,93 @@ export function buildChunks(files) {
   const chunks = [];
 
   for (const file of files) {
-    /* ===============================
-        FILE LEVEL CHUNK (always)
-     ================================ */
+    if (!file.ast || !file.ast.rootNode) continue;
 
-    chunks.push({
-      text: file.content.slice(0, 4000),
-      metadata: {
-        file: file.path,
-        symbol: "FILE",
-        type: "file",
-        language: file.language,
-      },
-    });
+    const fileChunks = [];
+    const queue = [{ node: file.ast.rootNode, parentId: file.path }];
 
-    // If AST missing, still keep file chunk
-    if (!file.ast) continue;
+    while (queue.length > 0) {
+      const { node, parentId } = queue.shift();
+      const type = node.type;
+      let isChunked = false;
 
-    traverse(file.ast.rootNode, node => {
-      /* ===============================
-          FUNCTIONS
-       ================================ */
+      const isFunction = [
+        "function_declaration",
+        "function_definition",
+        "method_definition",
+      ].includes(type);
+      const isClass = ["class_declaration", "class_definition"].includes(type);
 
-      if (node.type === "function_declaration") {
+      if (isClass || isFunction) {
         const nameNode = node.childForFieldName("name");
-        if (!nameNode) return;
+        const symbol = nameNode ? nameNode.text : "anonymous";
+        const currentId = `${file.path}#${symbol}`;
 
-        const chunkText = extractChunkFromNode(node, file.content);
-
-        chunks.push({
-          text: chunkText,
+        fileChunks.push({
+          text: file.content.slice(node.startIndex, node.endIndex),
           metadata: {
+            id: currentId,
+            parentId: parentId,
             file: file.path,
-            symbol: nameNode.text,
-            type: "function",
+            symbol: symbol,
+            type: isClass ? "class" : "function",
             language: file.language,
           },
         });
+        isChunked = true;
       }
 
-      /* ===============================
-          CLASSES
-       ================================ */
-
-      if (node.type === "class_declaration") {
-        const nameNode = node.childForFieldName("name");
-        if (!nameNode) return;
-
-        const chunkText = extractChunkFromNode(node, file.content);
-
-        chunks.push({
-          text: chunkText,
-          metadata: {
-            file: file.path,
-            symbol: nameNode.text,
-            type: "class",
-            language: file.language,
-          },
-        });
-      }
-
-      // Arrow functions & function expressions
-      if (
-        node.type === "lexical_declaration" ||
-        node.type === "variable_declaration"
-      ) {
-        for (const child of node.namedChildren) {
-          if (child.type !== "variable_declarator") continue;
-
-          const nameNode = child.childForFieldName("name");
-          const valueNode = child.childForFieldName("value");
-
-          if (!nameNode || !valueNode) continue;
-
-          if (
-            valueNode.type === "arrow_function" ||
-            valueNode.type === "function"
-          ) {
-            const chunkText = extractChunkFromNode(valueNode, file.content);
-
-            chunks.push({
-              text: chunkText,
-              metadata: {
-                file: file.path,
-                symbol: nameNode.text,
-                type: "function",
-                language: file.language,
-              },
-            });
-          }
+      if (!isChunked) {
+        for (const child of node.namedChildren || []) {
+          queue.push({ node: child, parentId: parentId });
         }
       }
-    });
+    }
+
+    // If no functions or classes were found
+    // capture the whole content as a 'module' type.
+    if (fileChunks.length === 0) {
+      chunks.push({
+        text: file.content,
+        metadata: {
+          id: `${file.path}#module`,
+          parentId: null,
+          file: file.path,
+          symbol: "main",
+          type: "module",
+          language: file.language,
+        },
+      });
+    } else {
+      chunks.push(...fileChunks);
+    }
   }
 
+  console.log(chunks);
   return chunks;
 }
+/* Sample output for a folder ./hello that has hello.ts and hi.py
+
+[
+  {
+    text: "function helloTrue(name: string): boolean {\n  console.log(\"Hello World!\");\n  return true;\n}",
+    metadata: {
+      id: "hello.ts#helloTrue",
+      parentId: "hello.ts",
+      file: "hello.ts",
+      symbol: "helloTrue",
+      type: "function",
+      language: "typescript",
+    },
+  }, {
+    text: "print(\"Hello World!\")\n",
+    metadata: {
+      id: "hi.py#module",
+      parentId: null,
+      file: "hi.py",
+      symbol: "main",
+      type: "module",
+      language: "python",
+    },
+  }
+  ] */
