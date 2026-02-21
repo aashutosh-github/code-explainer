@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { GoogleGenAI } from "@google/genai";
 
