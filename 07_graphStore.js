@@ -123,3 +123,27 @@ export async function linkFunctionCalls(fromId, toId) {
     { fromId, toId },
   );
 }
+/**
+ * Graph Expansion: Finds the lineage and neighbors of a symbol.
+ */
+export async function expandSymbol(name, filePath) {
+  const uid = `${filePath}#${name}`;
+
+  const query = `
+    MATCH (n {id: $uid})
+    MATCH (n)-[:DEFINED_IN|CALLS*1..2]-(neighbor)
+    RETURN neighbor.id AS id,
+           head(labels(neighbor)) AS type,
+           neighbor.name AS name
+    LIMIT 10
+  `;
+
+  const result = await runQuery(query, { uid });
+
+  // In the Neo4j JS Driver, you must call .get() on the record
+  return result.records.map(record => ({
+    id: record.get("id"),
+    type: record.get("type"),
+    name: record.get("name") || record.get("id"), // Fallback for Modules which use 'id'
+  }));
+}
