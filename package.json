@@ -14,7 +14,7 @@
     "tree-sitter-typescript": "^0.23.2"
   },
   "scripts": {
-    "ask": "node ask.js",
-    "upload": "node ingestData.js"
+    "ask": "bun ask.js",
+    "upload": "bun ingestData.js"
   }
 }
