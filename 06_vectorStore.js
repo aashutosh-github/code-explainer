@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { GoogleGenAI } from "@google/genai";
 
@@ -13,7 +12,7 @@ async function embedText(text, isQuery = false) {
       contents: [text],
       config: {
         taskType: isQuery ? "CODE_RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT",
-        outputDimensionality: 768,
+        outputDimensionality: 3072,
       },
     });
     return response.embeddings[0].values;
