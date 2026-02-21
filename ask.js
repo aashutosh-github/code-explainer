@@ -22,10 +22,10 @@ async function ask() {
       process.exit(0);
     }
 
-    console.log("\n🤖 Thinking...");
+    console.log("\n Thinking...");
 
     const context = await buildContext(query);
-    // context = {query, chunks, relationships}
+    // context = {query:string,context:[{...}]}
     const result = await generateAnswer(context, History);
 
     History = result.updatedHistory;
@@ -36,7 +36,7 @@ async function ask() {
 
     ask();
   } catch (err) {
-    console.error("❌ Query failed:", err);
+    console.error("Query failed:", err);
     rl.close();
     process.exit(0);
   }

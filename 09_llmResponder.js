@@ -1,70 +1,77 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
-const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
 
-/**
- * Build prompt for LLM
- */
-
-function buildPrompt(chunks, relations) {
-  let prompt = `
- RELEVANT CODE SNIPPETS:
- `;
-
-  for (const chunk of chunks) {
-    prompt += `
- ---------------------
- File: ${chunk.file}
- Symbol: ${chunk.symbol}
- ---------------------
- ${chunk.text}
- `;
+export function buildPrompt(query, context) {
+  if (!context || context.length === 0) {
+    return `The user asked: "${query}", but no relevant code was found in the database.`;
   }
 
-  if (relations.length > 0) {
-    prompt += `
- RELATIONSHIPS BETWEEN COMPONENTS:
- `;
-    for (const relation of relations) {
-      prompt += `
-   ${relation.from} ${relation.type} ${relation.to}
-   `;
+  let prompt = `You are provided with the following code snippets and their architectural relationships to answer the user's question: "${query}"\n\n`;
+
+  context.forEach((entry, index) => {
+    const { metadata, code, graphContext } = entry;
+    prompt += `--- CODE SNIPPET ${index + 1} ---\n`;
+    prompt += `LOCATION: ${metadata.file} (Symbol: ${metadata.symbol})\n`;
+    prompt += `CONTENT:\n${code}\n`;
+
+    if (graphContext && graphContext.length > 0) {
+      prompt += `GRAPH RELATIONSHIPS:\n`;
+      graphContext.forEach(rel => {
+        prompt += `- This ${metadata.type} is connected to ${rel.name} (${rel.type})\n`;
+      });
     }
-  }
+    prompt += `\n`;
+  });
+
   return prompt;
 }
-
-/**
- * Generate final answer using Gemini
- */
 export async function generateAnswer(context, history = []) {
-  const model = genai.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    systemInstruction: `You are an expert software engineer. You will only answer questions related to coding or software engineering. You will gently but firmly decline all other requests unrelated to coding.
-    Answer the user's question using ONLY the provided code snippets and relationships.
-    Be precise and answer step-by-step.
-    If the answer is not present in the given context, say you cannot determine as the asked part is not in the provided context.
-    Return all the answer in raw text format, DO NOT include any kind of formatting
-    Example:
-      1. do not return **Heading-1**, return Heading-1
-      2. do not return * bullet point 1, return bullet point 1`,
-  });
+  try {
+    // 1. Ensure the prompt is a clean string
+    const userPrompt = buildPrompt(context.query, context.context);
 
-  const prompt = buildPrompt(context.chunks, context.relations);
-  const chat = model.startChat({
-    history: history,
-  });
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        systemInstruction: `You are an expert software engineer.
+        Only answer questions related to coding or software engineering.
+        Answer using ONLY the provided code snippets and graph relationships.
+        Be precise and answer step-by-step.
+        Keep the answers sufficiently detailed.
+        Only provide explanations and not the code or relationships itself.
 
-  const messageWithContext = `
-  ${prompt}
+        In the graph DB, the module refers to a file that is not defined inside another file.
 
-  User Question: ${context.query}
-  `;
-  const result = await chat.sendMessage(messageWithContext);
-  const responseText = result.response.text();
+        STRICT FORMATTING RULE:
+        DO NOT use Markdown (no **, no ##, no *).
+        Use plain numbers for lists (1. 2. 3.) and plain text for emphasis.`,
+      },
+      contents: [
+        ...history,
+        {
+          role: "user",
+          parts: [{ text: userPrompt }],
+        },
+      ],
+    });
 
-  return {
-    answer: responseText,
-    updatedHistory: await chat.getHistory(),
-  };
+    const responseText = response.text;
+
+    const updatedHistory = [
+      ...history,
+      { role: "user", parts: [{ text: userPrompt }] },
+      { role: "model", parts: [{ text: responseText }] },
+    ];
+
+    return {
+      answer: responseText,
+      updatedHistory: updatedHistory,
+    };
+  } catch (error) {
+    console.error("LLM Generation failed:", error.message);
+    throw error;
+  }
 }
