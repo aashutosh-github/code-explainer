@@ -21,31 +21,46 @@ export async function syncChunksToGraph(chunks) {
   for (const chunk of chunks) {
     const { file, symbol, type, parentId, language, id } = chunk.metadata;
 
-    // 1. Ensure the Module (File) exists for every chunk
+    // 1. FORCE create the Module node first (this is your hi.py/hello.ts file)
     await createModuleNode(file, language);
 
-    // 2. Handle Functions
     if (type === "function") {
       await createFunctionNode(symbol, file, id);
 
-      // Determine if defined in a Class or the Module
-      const parentType =
-        parentId && parentId.includes("#") ? "Class" : "Module";
-      const actualParentId = parentId || file;
+      // Determine if parent is a Class or the Module
+      // If it's a top-level function, the parent is the Module (file)
+      const isTopLevel = !parentId || parentId === file;
+      const parentLabel = isTopLevel ? "Module" : "Class";
+      const targetParentId = isTopLevel ? file : parentId;
 
-      await linkToParent(id, actualParentId, parentType);
-    }
+      // If it's in a class, we need to make sure that class exists too
+      if (parentLabel === "Class") {
+        const className = parentId.split("#")[1];
+        await createClassNode(className, file, parentId);
+      }
 
-    // 3. Handle Classes (Explicitly linking Class -> Module)
-    else if (type === "class") {
+      await linkToParent(id, targetParentId, parentLabel);
+    } else if (type === "class") {
       await createClassNode(symbol, file, id);
-
-      // Based on your schema: class [:defined-in] => module
+      // Link Class -> Module
       await linkToParent(id, file, "Module");
     }
   }
 }
 
+/**
+ * FIXED: Uses MERGE on the relationship only after ensuring nodes exist
+ */
+async function linkToParent(childId, parentId, parentType) {
+  await runQuery(
+    `
+     MATCH (child {id: $childId})
+     MATCH (parent:${parentType} {id: $parentId})
+     MERGE (child)-[:DEFINED_IN]->(parent)
+     `,
+    { childId, parentId },
+  );
+}
 /* ===============================
     Node Creation
 ================================ */
