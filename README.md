@@ -1,26 +1,69 @@
-# Code-explainer
+# GraphRAG Codebase Analysis System
 
-This project is meant to serve as a simple AI tool that explains your codebase to you.
+## Overview
 
-The data flow is as follows:
+This project implements a GraphRAG (Graph-Augmented Retrieval) system designed for deep codebase analysis. By combining semantic vector search with a Knowledge Graph, the system can retrieve not only relevant code snippets but also the architectural context, such as where a function is defined, what classes it belongs to, and how modules interact.
 
-## Data Ingestion
+## Architecture
 
-- The root directory is accepted as an input.
-- The program scans the entire directory recursively.
-- An abstract syntax tree is formed from your code.
-- The functions and classes are extracted from your code.
-- These are then banded together as "chunks" and saved inside of a vector DB and the relationships between functions and classes are stored as nodes in a graph DB.
-  - The vector/graph DB will be the one used/hosted/purchased by the user, effectively eliminating the concerns about privacy.
-  - To use your own vector/graph DB, simply put the free API that you have generated in their corresponding positions in the .env file.
+The system utilizes a hybrid storage approach to bridge the gap between raw text and structural relationships:
 
-## Query Phase
+- **Vector Database (Pinecone):** Stores code embeddings for semantic similarity search.
+- **Graph Database (Neo4j):** Stores the structural lineage and relationships between code entities.
+- **LLM (Gemini 2.5 Flash):** Processes the augmented context to provide precise, technically grounded answers.
 
-- The user can give a query
-- The vector DB fetches the top 10 most similar chunks (pieces of code).
-- The graph DB fetches the relationships of these 10 chunks.
-- The detailed and final prompt is built with the entire context of the code and its relationships along with the user's query.
-- The final answer is returned.
-- A chat history feature has also been implemented
+## Project Structure
 
-### <mark>The user will have to enter their own credentials in the .env file</mark>
+- **05_chunkBuilder.js**: Handles the parsing and chunking of source code files into searchable units.
+- **06_vectorStore.js**: Manages the embedding process and upserting of data into the vector index.
+- **07_graphStore.js**: Manages the Neo4j schema, including the creation of Module, Class, and Function nodes and their respective relationships.
+- **08_queryEngine.js**: The orchestration layer that performs semantic search and then expands the found nodes within the graph to collect architectural context.
+- **09_llmResponder.js**: Formats the final consolidated context and interfaces with the Gemini API for response generation.
+
+## Graph Schema
+
+The system builds a relationship map using the following logic:
+
+- **DEFINED_IN**: Links Functions to Classes or Modules, and Classes to Modules.
+- **CALLS**: Represents function-to-function execution paths.
+- **IMPORTS**: Tracks dependencies between different Modules.
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v20.6.0 or higher for native env support)
+- Neo4j Instance (Aura or Local)
+- Pinecone API Key
+- Google Gemini API Key
+
+### Installation
+
+1.  Clone the repository.
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Configure your environment variables in a `.env` file:
+    ```env
+    PINECONE_API_KEY=your_key
+    NEO4J_URI=your_uri
+    NEO4J_USERNAME=neo4j
+    NEO4J_PASSWORD=your_password
+    GEMINI_API_KEY=your_key
+    PINECONE_INDEX=your_index_name
+    ```
+
+### Usage
+
+To ingest your codebase into the databases:
+
+```bash
+npm run upload
+```
+
+To ask queries to the model, run:
+
+```bash
+npm run ask
+```

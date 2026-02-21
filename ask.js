@@ -14,7 +14,7 @@ let History = [];
 
 async function ask() {
   try {
-    console.log("💬 Ask a question about the codebase:");
+    console.log("Ask a question about the codebase:");
     const query = await rl.question("> ");
     if (["exit", "quit"].includes(query.trim().toLowerCase())) {
       console.log("Exiting!");
