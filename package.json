@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "dependencies": {
+    "@google/genai": "^1.42.0",
     "@google/generative-ai": "^0.24.1",
     "@pinecone-database/pinecone": "^7.0.0",
     "neo4j-driver": "^6.0.1",

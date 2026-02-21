@@ -17,38 +17,38 @@ const rl = readline.createInterface({ input, output });
 
 async function ingest() {
   try {
-    console.log("📂 Enter root folder path (relative to this file):");
+    console.log("Enter root folder path (relative to this file):");
     const folderPath = await rl.question("> ");
 
-    console.log("\n🔍 Scanning files...");
+    console.log("\nScanning files...");
     const files = await scanCodebase(folderPath);
 
-    console.log("🧠 Detecting languages...");
+    console.log("Detecting languages...");
     const withLang = await detectLanguages(files);
 
-    console.log("🌳 Parsing AST...");
+    console.log("Parsing AST...");
     const withAst = await parseFilesToAST(withLang);
 
-    console.log("🔎 Extracting symbols...");
+    console.log("Extracting symbols...");
     const withSymbols = extractSymbols(withAst);
 
-    console.log("📦 Building chunks...");
+    console.log("Building chunks...");
     const chunks = buildChunks(withSymbols);
-    console.log(`🧩 Total chunks created: ${chunks.length}`);
+    console.log(`Total chunks created: ${chunks.length}`);
 
-    console.log("📥 Storing chunks in Vector DB...");
+    console.log("Storing chunks in Vector DB...");
     await storeChunks(chunks);
 
     /* ===============================
        🕸️ BUILDING GRAPH (UPDATED)
     ================================ */
-    console.log("🕸️ Syncing chunks to Knowledge Graph...");
+    console.log("Syncing chunks to Knowledge Graph...");
     await syncChunksToGraph(chunks);
-    console.log("\n✅ Ingestion completed successfully.");
+    console.log("\nIngestion completed successfully.");
     rl.close();
     process.exit(0);
   } catch (err) {
-    console.error("❌ Ingestion failed:", err);
+    console.error("Ingestion failed:", err);
     rl.close();
     process.exit(1);
   }

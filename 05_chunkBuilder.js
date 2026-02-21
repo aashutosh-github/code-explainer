@@ -69,7 +69,6 @@ export function buildChunks(files) {
     }
   }
 
-  console.log(chunks);
   return chunks;
 }
 /* Sample output for a folder ./hello that has hello.ts and hi.py
