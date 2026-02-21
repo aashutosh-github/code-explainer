@@ -45,7 +45,7 @@ export function extractSymbols(files) {
       // Function calls
       if (node.type === "call_expression") {
         const fnNode = node.child(0);
-        if (fnNode) calls.push(fnNode.text);
+        if (fnNode && !calls.includes(fnNode.text)) calls.push(fnNode.text);
       }
     });
 
