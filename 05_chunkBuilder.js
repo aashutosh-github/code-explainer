@@ -1,21 +1,4 @@
 /**
- * Recursively traverse AST
- */
-function traverse(node, callback) {
-  callback(node);
-  for (const child of node.children || []) {
-    traverse(child, callback);
-  }
-}
-
-/**
- * Extract code chunk using node byte range
- */
-function extractChunkFromNode(node, content) {
-  return content.slice(node.startIndex, node.endIndex);
-}
-
-/**
  * Build semantic chunks from AST
  * @param {Array<{path:string, content:string, language:string, ast:any}>} files
  * @returns {Array<{text:string, metadata:Object}>}
