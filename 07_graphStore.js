@@ -1,17 +1,9 @@
 import neo4j from "neo4j-driver";
 
-/* ===============================
-   Client
-================================ */
-
 const driver = neo4j.driver(
   process.env.NEO4J_URI,
   neo4j.auth.basic(process.env.NEO4J_USERNAME, process.env.NEO4J_PASSWORD),
 );
-
-/* ===============================
-   Helpers
-================================ */
 
 async function runQuery(query, params = {}) {
   const session = driver.session();
@@ -22,89 +14,97 @@ async function runQuery(query, params = {}) {
   }
 }
 
+/**
+ * Main Entry Point: Processes the chunks array from buildChunks
+ */
+export async function syncChunksToGraph(chunks) {
+  for (const chunk of chunks) {
+    const { file, symbol, type, parentId, language, id } = chunk.metadata;
+
+    // 1. Ensure the Module (File) exists for every chunk
+    await createModuleNode(file, language);
+
+    // 2. Handle Functions
+    if (type === "function") {
+      await createFunctionNode(symbol, file, id);
+
+      // Determine if defined in a Class or the Module
+      const parentType =
+        parentId && parentId.includes("#") ? "Class" : "Module";
+      const actualParentId = parentId || file;
+
+      await linkToParent(id, actualParentId, parentType);
+    }
+
+    // 3. Handle Classes (Explicitly linking Class -> Module)
+    else if (type === "class") {
+      await createClassNode(symbol, file, id);
+
+      // Based on your schema: class [:defined-in] => module
+      await linkToParent(id, file, "Module");
+    }
+  }
+}
+
 /* ===============================
-   Create Nodes
+    Node Creation
 ================================ */
 
-export async function createFileNode(path) {
+async function createModuleNode(path, language) {
   await runQuery(
-    `
-    MERGE (f:File {path: $path})
-    `,
-    { path },
+    `MERGE (m:Module {id: $path})
+     SET m.path = $path, m.language = $language`,
+    { path, language },
   );
 }
 
-export async function createFunctionNode(name, file) {
+async function createFunctionNode(name, file, uid) {
   await runQuery(
-    `
-    MERGE (fn:Function {name: $name, file: $file})
-    `,
-    { name, file },
+    `MERGE (f:Function {id: $uid})
+     SET f.name = $name, f.file = $file`,
+    { uid, name, file },
   );
 }
 
-export async function createClassNode(name, file) {
+async function createClassNode(name, file, uid) {
   await runQuery(
-    `
-    MERGE (c:Class {name: $name, file: $file})
-    `,
-    { name, file },
-  );
-}
-
-/* ===============================
-   Create Relationships
-================================ */
-
-export async function linkFileDefinesSymbol(file, symbol) {
-  await runQuery(
-    `
-    MATCH (f:File {path:$file})
-    MATCH (s {name:$symbol})
-    MERGE (f)-[:DEFINES]->(s)
-    `,
-    { file, symbol },
-  );
-}
-
-export async function linkFunctionCallsFunction(from, to) {
-  await runQuery(
-    `
-    MATCH (a:Function {name:$from})
-    MATCH (b:Function {name:$to})
-    MERGE (a)-[:CALLS]->(b)
-    `,
-    { from, to },
-  );
-}
-
-export async function linkFileImportsFile(fromFile, toFile) {
-  await runQuery(
-    `
-    MATCH (a:File {path:$fromFile})
-    MATCH (b:File {path:$toFile})
-    MERGE (a)-[:IMPORTS]->(b)
-    `,
-    { fromFile, toFile },
+    `MERGE (c:Class {id: $uid})
+     SET c.name = $name, c.file = $file`,
+    { uid, name, file },
   );
 }
 
 /* ===============================
-   Graph Expansion
+    Relationships (The Schema Core)
 ================================ */
 
-export async function expandSymbol(symbol) {
-  const result = await runQuery(
-    `
-    MATCH (n {name:$symbol})-[:CALLS|DEFINES|IMPORTS]->(m)
-    RETURN m.name AS name, labels(m)[0] AS type
-    `,
-    { symbol },
+// Handles: (Function)-[:DEFINED_IN]->(Class|Module)
+// AND (Class)-[:DEFINED_IN]->(Module)
+async function linkToParent(childId, parentId, parentType) {
+  await runQuery(
+    `MATCH (child {id: $childId})
+     MATCH (parent:${parentType} {id: $parentId})
+     MERGE (child)-[:DEFINED_IN]->(parent)`,
+    { childId, parentId },
   );
+}
 
-  return result.records.map(r => ({
-    symbol: r.get("name"),
-    type: r.get("type"),
-  }));
+// module [:imports] => module
+export async function linkModuleImports(fromPath, toPath) {
+  await runQuery(
+    `MATCH (a:Module {id: $fromPath})
+     MATCH (b:Module {id: $toPath})
+     MERGE (a)-[:IMPORTS]->(b)`,
+    { fromPath, toPath },
+  );
+}
+
+// function [:calls] => function
+export async function linkFunctionCalls(fromId, toId) {
+  await runQuery(
+    `MATCH (a:Function {id: $fromId})
+     MATCH (b:Function {id: $toId})
+     MERGE (a)-[:CALLS]->(b)`,
+    { fromId, toId },
+  );
 }
