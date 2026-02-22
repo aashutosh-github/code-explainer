@@ -27,10 +27,6 @@ const SUPPORTED_EXTENSIONS = new Set([
   ".jsx",
   ".tsx",
   ".py",
-  ".java",
-  ".go",
-  ".cpp",
-  ".c",
 ]);
 
 /**
